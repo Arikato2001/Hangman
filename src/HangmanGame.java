@@ -2,6 +2,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.util.HashSet;
 import java.util.Random;
@@ -12,7 +14,7 @@ public class HangmanGame {
     private static final String[] WORDS = {"JAVA", "SWING", "COMPUTER", "PROGRAMMING", "KEYBOARD"};
     private String selectedWord; // Das aktuell zu ratende Wort
     private Set<Character> guessedLetters = new HashSet<>(); // Set zur Speicherung bereits geratener Buchstaben
-    private int mistakes = 0; // Anzahl der Fehler
+    private int mistakes = 1; // Anzahl der Fehler
     private final int maxMistakes = 9; // Maximale Anzahl an Fehlern
 
     private JFrame frame;
@@ -20,7 +22,7 @@ public class HangmanGame {
     private JTextField inputField;
     private JButton guessButton;
     private JLabel picLabel;
-    private JLabel guessedLettersLabel; // Neues Label für die geratenen Buchstaben
+    private JLabel guessedLettersLabel; // für die geratenen Buchstaben
 
     public HangmanGame() {
         // Zufälliges Wort aus der Liste auswählen
@@ -62,6 +64,17 @@ public class HangmanGame {
         bottomPanel.add(inputPanel, BorderLayout.CENTER);
 
         frame.add(bottomPanel, BorderLayout.SOUTH);
+
+        // KeyListener hinzufügen, um die ENTER-Taste zu überwachen
+        inputField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                // Wenn die ENTER-Taste gedrückt wird
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    guessButton.doClick(); // Simuliert einen Klick auf den Guess-Button
+                }
+            }
+        });
 
         frame.setSize(400, 500);
         frame.setVisible(true);
@@ -120,7 +133,7 @@ public class HangmanGame {
                 updateGuessedLetters(); // Die Liste der geratenen Buchstaben aktualisieren
                 checkGameStatus(); // Prüfen, ob das Spiel vorbei ist
             }
-            inputField.setText("");
+            inputField.setText(""); // Textfeld nach der Eingabe zurücksetzen
         }
     }
 
