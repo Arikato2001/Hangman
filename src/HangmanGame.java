@@ -143,6 +143,7 @@ public class HangmanGame {
             JOptionPane.showMessageDialog(frame, "Game Over! Das Wort war: " + selectedWord);
             restartGame();
         } else if (!getMaskedWord().contains("_")) {
+            updateImage();
             JOptionPane.showMessageDialog(frame, "Glückwunsch! Du hast gewonnen!");
             restartGame();
         }
@@ -152,7 +153,7 @@ public class HangmanGame {
         // Setzt das Spiel zurück und startet neu
         selectedWord = WORDS[new Random().nextInt(WORDS.length)];
         guessedLetters.clear();
-        mistakes = 0;
+        mistakes = 1;
         wordLabel.setText(getMaskedWord());
         updateImage(); // Das Bild wird ebenfalls zurückgesetzt
         updateGuessedLetters(); // Die Liste der geratenen Buchstaben wird zurückgesetzt
