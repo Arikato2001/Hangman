@@ -1,87 +1,135 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.io.File;
-import java.util.HashSet;
-import java.util.Random;
-import java.util.Set;
+import java.awt.event.*;
+import java.io.*;
+import java.util.*;
+import java.util.List;
 
 public class HangmanGame {
-    // Eine Liste mit möglichen Wörtern für das Spiel
-    private static final String[] WORDS = {"JAVA", "SWING", "COMPUTER", "PROGRAMMING", "KEYBOARD"};
-    private String selectedWord; // Das aktuell zu ratende Wort
-    private Set<Character> guessedLetters = new HashSet<>(); // Set zur Speicherung bereits geratener Buchstaben
-    private int mistakes = 1; // Anzahl der Fehler
-    private final int maxMistakes = 9; // Maximale Anzahl an Fehlern
+    // Liste der Wörter für das Spiel
+    private List<String> wordList = new ArrayList<>();
+    // Das aktuell ausgewählte Wort zum Raten
+    private String selectedWord;
+    // Menge der bereits geratenen Buchstaben
+    private Set<Character> guessedLetters = new HashSet<>();
+    // Anzahl der Fehler (Fehlversuche)
+    private int mistakes = 1;
+    // Maximale Fehleranzahl
+    private int maxMistakes = 9;
+    // Flag, ob die Historie der geratenen Buchstaben angezeigt wird
+    private boolean showHistory = true;
 
+    // GUI-Komponenten
     private JFrame frame;
-    private JLabel wordLabel;
+    private JLabel wordLabel, picLabel, guessedLettersLabel;
     private JTextField inputField;
     private JButton guessButton;
-    private JLabel picLabel;
-    private JLabel guessedLettersLabel; // für die geratenen Buchstaben
 
+    // Konstruktor, der das Spiel initialisiert
     public HangmanGame() {
-        // Zufälliges Wort aus der Liste auswählen
-        selectedWord = WORDS[new Random().nextInt(WORDS.length)];
+        loadWordsFromFile("words.txt"); // Wörter aus einer Datei laden
+        selectedWord = wordList.get(new Random().nextInt(wordList.size())); // Zufälliges Wort auswählen
         initUI(); // Benutzeroberfläche initialisieren
     }
 
+    // GUI initialisieren
     private void initUI() {
         frame = new JFrame("Hangman");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
 
-        // Label für das Wort mit Platzhaltern (_) anzeigen
+        // Menüleiste erstellen
+        JMenuBar menuBar = new JMenuBar();
+        JMenu gameMenu = new JMenu("Einstellungen");
+        JMenuItem setTries = new JMenuItem("Versuche setzen");
+        JCheckBoxMenuItem historyToggle = new JCheckBoxMenuItem("Buchstaben-History anzeigen", showHistory);
+        JMenuItem loadWords = new JMenuItem("Wörter neu laden");
+
+        // Aktionen für Menüeinträge definieren
+        setTries.addActionListener(e -> setMaxMistakes());
+        historyToggle.addActionListener(e -> toggleHistory());
+        loadWords.addActionListener(e -> reloadWords());
+
+        // Menüeinträge hinzufügen
+        gameMenu.add(setTries);
+        gameMenu.add(historyToggle);
+        gameMenu.add(loadWords);
+        menuBar.add(gameMenu);
+        frame.setJMenuBar(menuBar);
+
+        // Label für das Wort
         wordLabel = new JLabel(getMaskedWord(), SwingConstants.CENTER);
         wordLabel.setFont(new Font("Arial", Font.BOLD, 24));
         frame.add(wordLabel, BorderLayout.NORTH);
 
-        // Label für das Bild hinzufügen
+        // Bild für den Hangman
         picLabel = new JLabel();
         updateImage();
         frame.add(picLabel, BorderLayout.CENTER);
 
-        // Panel für die Eingabe und geratenen Buchstaben
-        JPanel bottomPanel = new JPanel();
-        bottomPanel.setLayout(new BorderLayout());
-
-        // Neues Label für die geratenen Buchstaben
+        // Panel für die Eingabe und die geratenen Buchstaben
+        JPanel bottomPanel = new JPanel(new BorderLayout());
         guessedLettersLabel = new JLabel("Geratene Buchstaben: ", SwingConstants.CENTER);
         guessedLettersLabel.setFont(new Font("Arial", Font.PLAIN, 16));
         bottomPanel.add(guessedLettersLabel, BorderLayout.NORTH);
 
-        // Eingabebereich für Buchstabenraten erstellen
         JPanel inputPanel = new JPanel();
-        inputField = new JTextField(5);
-        guessButton = new JButton("Guess");
-        guessButton.addActionListener(new GuessHandler()); // Event-Listener hinzufügen
-        inputPanel.add(inputField);
-        inputPanel.add(guessButton);
-        bottomPanel.add(inputPanel, BorderLayout.CENTER);
-
-        frame.add(bottomPanel, BorderLayout.SOUTH);
-
-        // KeyListener hinzufügen, um die ENTER-Taste zu überwachen
-        inputField.addKeyListener(new KeyAdapter() {
+        inputField = new JTextField(5); // Textfeld für die Buchstabeneingabe
+        guessButton = new JButton("Raten");
+        guessButton.addActionListener(new GuessHandler()); // Button zum Raten
+        inputField.addKeyListener(new KeyAdapter() { // Eingabefeld für Enter-Taste
             @Override
             public void keyPressed(KeyEvent e) {
-                // Wenn die ENTER-Taste gedrückt wird
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    guessButton.doClick(); // Simuliert einen Klick auf den Guess-Button
+                    guessButton.doClick(); // Button klicken bei Enter
                 }
             }
         });
+        inputPanel.add(inputField);
+        inputPanel.add(guessButton);
+        bottomPanel.add(inputPanel, BorderLayout.CENTER);
+        frame.add(bottomPanel, BorderLayout.SOUTH);
 
+        // Fenstergröße und Sichtbarkeit
         frame.setSize(400, 500);
         frame.setVisible(true);
     }
 
+    // Maximale Fehleranzahl setzen
+    private void setMaxMistakes() {
+        String input = JOptionPane.showInputDialog(frame, "Maximale Versuche setzen:", maxMistakes);
+        if (input != null && input.matches("\\d+")) {
+            maxMistakes = Integer.parseInt(input);
+        }
+    }
+
+    // Toggle für die Anzeige der geratenen Buchstaben-Historie
+    private void toggleHistory() {
+        showHistory = !showHistory;
+        updateGuessedLetters();
+    }
+
+    // Wörter neu laden
+    private void reloadWords() {
+        loadWordsFromFile("words.txt");
+        restartGame();
+    }
+
+    // Wörter aus einer Datei laden
+    private void loadWordsFromFile(String filename) {
+        wordList.clear();
+        try (Scanner scanner = new Scanner(new File(filename))) {
+            while (scanner.hasNextLine()) {
+                wordList.add(scanner.nextLine().toUpperCase()); // Wörter in Großbuchstaben speichern
+            }
+        } catch (FileNotFoundException e) {
+            // Fallback, falls die Datei nicht gefunden wird
+            wordList.addAll(Arrays.asList("JAVA", "SWING", "COMPUTER", "PROGRAMMING", "KEYBOARD"));
+        }
+    }
+
+    // Maskiertes Wort für die Anzeige erstellen
     private String getMaskedWord() {
-        // Erstellt eine Darstellung des Wortes mit _ für unerratene Buchstaben
         StringBuilder masked = new StringBuilder();
         for (char c : selectedWord.toCharArray()) {
             if (guessedLetters.contains(c)) {
@@ -93,73 +141,84 @@ public class HangmanGame {
         return masked.toString();
     }
 
+    // Bild für den Hangman basierend auf der Fehleranzahl aktualisieren
     private void updateImage() {
-        // Das Bild basierend auf der Fehleranzahl aktualisieren
         String imagePath = "Hangmanbilder/hangman" + mistakes + ".png";
         File imageFile = new File(imagePath);
         if (imageFile.exists()) {
             ImageIcon icon = new ImageIcon(imageFile.getAbsolutePath());
             Image img = icon.getImage().getScaledInstance(250, 250, Image.SCALE_SMOOTH);
             picLabel.setIcon(new ImageIcon(img));
-        } else {
-            System.out.println("Bild nicht gefunden: " + imageFile.getAbsolutePath());
         }
     }
 
+    // Die Anzeige der geratenen Buchstaben aktualisieren
     private void updateGuessedLetters() {
-        // Aktualisiert das Label mit den geratenen Buchstaben
-        StringBuilder guessedLettersText = new StringBuilder("Geratene Buchstaben: ");
-        for (char c : guessedLetters) {
-            guessedLettersText.append(c).append(" ");
+        if (showHistory) {
+            StringBuilder guessedLettersText = new StringBuilder("Geratene Buchstaben: ");
+            for (char c : guessedLetters) {
+                guessedLettersText.append(c).append(" ");
+            }
+            guessedLettersLabel.setText(guessedLettersText.toString());
+        } else {
+            guessedLettersLabel.setText("");
         }
-        guessedLettersLabel.setText(guessedLettersText.toString());
     }
 
+    // Handler für das Raten eines Buchstabens
     private class GuessHandler implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            // Nimmt die Eingabe des Benutzers entgegen und verarbeitet sie
             String input = inputField.getText().toUpperCase();
             if (input.length() == 1) {
                 char guess = input.charAt(0);
                 if (!guessedLetters.contains(guess)) {
                     guessedLetters.add(guess);
                     if (!selectedWord.contains(String.valueOf(guess))) {
-                        mistakes++; // Erhöht Fehleranzahl, wenn Buchstabe nicht im Wort ist
+                        mistakes++; // Fehler nur erhöhen, wenn der Buchstabe nicht im Wort ist
                     }
+                    wordLabel.setText(getMaskedWord());
+                    updateImage();
+                    updateGuessedLetters();
+                    checkGameStatus(); // Status nach der Fehlererhöhung prüfen
                 }
-                wordLabel.setText(getMaskedWord()); // Wortanzeige aktualisieren
-                updateImage(); // Bild aktualisieren
-                updateGuessedLetters(); // Die Liste der geratenen Buchstaben aktualisieren
-                checkGameStatus(); // Prüfen, ob das Spiel vorbei ist
             }
-            inputField.setText(""); // Textfeld nach der Eingabe zurücksetzen
+            inputField.setText(""); // Eingabefeld nach dem Raten leeren
         }
     }
 
+
+    // Spielstatus prüfen (ob das Spiel zu Ende ist)
     private void checkGameStatus() {
-        // Überprüft, ob das Spiel gewonnen oder verloren wurde
-        if (mistakes >= maxMistakes) {
-            JOptionPane.showMessageDialog(frame, "Game Over! Das Wort war: " + selectedWord);
-            restartGame();
-        } else if (!getMaskedWord().contains("_")) {
-            updateImage();
-            JOptionPane.showMessageDialog(frame, "Glückwunsch! Du hast gewonnen!");
-            restartGame();
+        if (mistakes > maxMistakes) { // Fehleranzahl darf maxMistakes überschreiten, nicht gleich sein
+            if (JOptionPane.showConfirmDialog(frame, "Game Over! Das Wort war: " + selectedWord + "\nNeues Spiel starten?", "Spiel beendet", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                restartGame();
+            } else {
+                frame.dispose();
+            }
+        } else if (!getMaskedWord().contains("_")) { // Wenn alle Buchstaben erraten wurden
+            if (JOptionPane.showConfirmDialog(frame, "Glückwunsch! Du hast gewonnen!\nNeues Spiel starten?", "Spiel gewonnen", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                restartGame();
+            } else {
+                frame.dispose();
+            }
         }
     }
 
+
+    // Spiel neu starten
     private void restartGame() {
-        // Setzt das Spiel zurück und startet neu
-        selectedWord = WORDS[new Random().nextInt(WORDS.length)];
-        guessedLetters.clear();
-        mistakes = 1;
-        wordLabel.setText(getMaskedWord());
-        updateImage(); // Das Bild wird ebenfalls zurückgesetzt
-        updateGuessedLetters(); // Die Liste der geratenen Buchstaben wird zurückgesetzt
+        selectedWord = wordList.get(new Random().nextInt(wordList.size())); // Neues Wort wählen
+        guessedLetters.clear(); // Alle geratenen Buchstaben zurücksetzen
+        mistakes = 1; // Fehler zurücksetzen auf 1 (nicht 0, damit die Fehlerzählung korrekt funktioniert)
+        wordLabel.setText(getMaskedWord()); // Maskiertes Wort anzeigen
+        updateImage(); // Hangman-Bild zurücksetzen
+        updateGuessedLetters(); // Die Liste der geratenen Buchstaben zurücksetzen
     }
 
+
+    // Hauptmethode zum Starten des Spiels
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(HangmanGame::new); // Startet das Spiel in der Event-Dispatch-Thread
+        SwingUtilities.invokeLater(HangmanGame::new); // Das Spiel im Event-Dispatch-Thread starten
     }
 }
